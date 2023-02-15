@@ -13,6 +13,7 @@ import org.jsoup.nodes.Element;
 
 import javax.swing.text.html.parser.Entity;
 import java.io.IOException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -59,9 +60,10 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
-        List<String> linkPool = new ArrayList<>();
-        Set<String> processedLinks = new HashSet<>();
+    public static void main(String[] args) throws SQLException {
+        Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news");
+        List<String> linkPool = loadUrlsFromDatabase(connection, "select link from LINKS_TO_BE_PROCESSED");
+        Set<String> processedLinks = new HashSet<>(loadUrlsFromDatabase(connection, "select link from LINKS_ALREADY_PROCESSED"));
         linkPool.add("https://sina.cn");
         while (!linkPool.isEmpty()) {
             String link = linkPool.remove(linkPool.size() - 1);
@@ -73,4 +75,16 @@ public class Main {
             }
         }
     }
+
+    private static List<String> loadUrlsFromDatabase(Connection connection, String sql) throws SQLException {
+        List<String> list = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            ResultSet result = statement.executeQuery();
+            while (result.next()) {
+                list.add(result.getString(1));
+            }
+            return list;
+        }
+    }
 }
+
