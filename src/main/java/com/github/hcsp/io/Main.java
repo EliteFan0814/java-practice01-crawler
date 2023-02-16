@@ -13,11 +13,12 @@ import org.jsoup.nodes.Element;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class Main {
+    private static final String USER_NAME = "root";
+    private static final String PASSWORD = "123456";
+
     private static Boolean isInterestLink(String link) {
         return link.contains("sina.cn") && !link.contains("passport.sina.cn") && (link.contains("news.sina.cn") || "https://sina.cn".equals(link));
     }
@@ -48,16 +49,20 @@ public class Main {
             HttpEntity entity1 = response1.getEntity();
             String html = EntityUtils.toString(entity1);
             Document doc = Jsoup.parse(html);
-            //            从当前链接获取新链接成功后再从数据库删除当前链接
+            // 从当前链接获取新链接成功后再从数据库删除当前链接
             handleLinkInDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
-            for (Element aTag : doc.select("a")) {
-                String href = aTag.attr("href");
-                handleLinkInDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
-            }
+            parseALinkFromPageAndStoreIntoDatabase(connection, doc);
             handleArticle(doc);
             handleLinkInDatabase(link, connection, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static void parseALinkFromPageAndStoreIntoDatabase(Connection connection, Document doc) {
+        for (Element aTag : doc.select("a")) {
+            String href = aTag.attr("href");
+            handleLinkInDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
         }
     }
 
@@ -72,32 +77,43 @@ public class Main {
 
     private static List<String> loadUrlsFromDatabase(Connection connection, String sql) throws SQLException {
         List<String> list = new ArrayList<>();
+        ResultSet result = null;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            ResultSet result = statement.executeQuery();
+            result = statement.executeQuery();
             while (result.next()) {
                 list.add(result.getString(1));
             }
             return list;
+        } finally {
+            if (result != null) {
+                result.close();
+            }
         }
     }
 
     private static boolean isProcessed(Connection connection, String link) throws SQLException {
+        ResultSet resultSet = null;
         try (PreparedStatement statement = connection.prepareStatement("select link from LINKS_ALREADY_PROCESSED where link = ?")) {
             statement.setString(1, link);
-            ResultSet resultSet = statement.executeQuery();
+            resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 return true;
+            }
+        } finally {
+            if (resultSet != null) {
+                resultSet.close();
             }
         }
         return false;
     }
 
+    @SuppressWarnings("DMI_CONSTANT_DB_PASSWORD")
     public static void main(String[] args) throws SQLException {
-        Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news", "root", "123456");
+        Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news", USER_NAME, PASSWORD);
         while (true) {
             List<String> linkPool = loadUrlsFromDatabase(connection, "select link from LINKS_TO_BE_PROCESSED");
             String link = linkPool.remove(linkPool.size() - 1);
-            if (!isProcessed(connection, link)&&isInterestLink(link)) {
+            if (!isProcessed(connection, link) && isInterestLink(link)) {
                 handleNewLinkAndProcessedLink(link, connection);
             } else {
                 //如果已经处理过此条链接，则从数据库删除
