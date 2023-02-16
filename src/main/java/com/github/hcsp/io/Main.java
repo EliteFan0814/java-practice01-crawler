@@ -1,7 +1,6 @@
 package com.github.hcsp.io;
 
 import org.apache.http.HttpEntity;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -11,7 +10,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-import javax.swing.text.html.parser.Entity;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
@@ -43,36 +41,32 @@ public class Main {
         }
     }
 
-    private static void handleRequest(String link, List<String> linkPool, Set<String> processedLinks) {
+    private static void handleNewLinkAndProcessedLink(String link, Connection connection) {
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = generateATagRequest(link);
         try (CloseableHttpResponse response1 = httpClient.execute(httpGet)) {
             HttpEntity entity1 = response1.getEntity();
             String html = EntityUtils.toString(entity1);
             Document doc = Jsoup.parse(html);
-            doc.select("a").stream().map(aTag -> aTag.attr("href")).forEach(linkPool::add);
+            //            从当前链接获取新链接成功后再从数据库删除当前链接
+            handleLinkInDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+            for (Element aTag : doc.select("a")) {
+                String href = aTag.attr("href");
+                handleLinkInDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
+            }
             handleArticle(doc);
-            processedLinks.add(link);
-        } catch (ClientProtocolException e) {
-            throw new RuntimeException(e);
+            handleLinkInDatabase(link, connection, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static void main(String[] args) throws SQLException {
-        Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news");
-        List<String> linkPool = loadUrlsFromDatabase(connection, "select link from LINKS_TO_BE_PROCESSED");
-        Set<String> processedLinks = new HashSet<>(loadUrlsFromDatabase(connection, "select link from LINKS_ALREADY_PROCESSED"));
-        linkPool.add("https://sina.cn");
-        while (!linkPool.isEmpty()) {
-            String link = linkPool.remove(linkPool.size() - 1);
-            if (processedLinks.contains(link)) {
-                continue;
-            }
-            if (isInterestLink(link)) {
-                handleRequest(link, linkPool, processedLinks);
-            }
+    private static void handleLinkInDatabase(String link, Connection connection, String sql) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, link);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -84,6 +78,31 @@ public class Main {
                 list.add(result.getString(1));
             }
             return list;
+        }
+    }
+
+    private static boolean isProcessed(Connection connection, String link) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("select link from LINKS_ALREADY_PROCESSED where link = ?")) {
+            statement.setString(1, link);
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void main(String[] args) throws SQLException {
+        Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news", "root", "123456");
+        while (true) {
+            List<String> linkPool = loadUrlsFromDatabase(connection, "select link from LINKS_TO_BE_PROCESSED");
+            String link = linkPool.remove(linkPool.size() - 1);
+            if (!isProcessed(connection, link)&&isInterestLink(link)) {
+                handleNewLinkAndProcessedLink(link, connection);
+            } else {
+                //如果已经处理过此条链接，则从数据库删除
+                handleLinkInDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+            }
         }
     }
 }
