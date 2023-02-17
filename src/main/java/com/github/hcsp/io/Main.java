@@ -52,10 +52,10 @@ public class Main {
             String html = EntityUtils.toString(entity1);
             Document doc = Jsoup.parse(html);
             // 从当前链接获取新链接成功后再从数据库删除当前链接
-            handleLinkInDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+            handleUpdateDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
             parseALinkFromPageAndStoreIntoDatabase(connection, doc);
             handleArticle(doc);
-            handleLinkInDatabase(link, connection, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
+            handleUpdateDatabase(link, connection, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -64,11 +64,11 @@ public class Main {
     private static void parseALinkFromPageAndStoreIntoDatabase(Connection connection, Document doc) {
         for (Element aTag : doc.select("a")) {
             String href = aTag.attr("href");
-            handleLinkInDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
+            handleUpdateDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
         }
     }
 
-    private static void handleLinkInDatabase(String link, Connection connection, String sql) {
+    private static void handleUpdateDatabase(String link, Connection connection, String sql) {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, link);
             statement.executeUpdate();
@@ -77,13 +77,13 @@ public class Main {
         }
     }
 
-    private static List<String> loadUrlsFromDatabase(Connection connection, String sql) throws SQLException {
+    private static String getNextLink(Connection connection, String sql) throws SQLException {
         List<String> list = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql); ResultSet result = statement.executeQuery()) {
             while (result.next()) {
-                list.add(result.getString(1));
+                return result.getString(1);
             }
-            return list;
+            return null;
         }
     }
 
@@ -103,19 +103,24 @@ public class Main {
         return false;
     }
 
+    private static boolean isANeededLink(Connection connection, String link) throws SQLException {
+        return !isProcessed(connection, link) && isInterestLink(link);
+    }
+
     @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
     public static void main(String[] args) throws SQLException {
         Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news", USER_NAME, PASSWORD);
-        while (true) {
-            List<String> linkPool = loadUrlsFromDatabase(connection, "select link from LINKS_TO_BE_PROCESSED");
-            String link = linkPool.remove(linkPool.size() - 1);
-            if (!isProcessed(connection, link) && isInterestLink(link)) {
+        String link;
+        while ((link = getNextLink(connection, "select link from LINKS_TO_BE_PROCESSED limit 1")) != null) {
+            if (isANeededLink(connection, link)) {
                 handleNewLinkAndProcessedLink(link, connection);
             } else {
                 //如果已经处理过此条链接，则从数据库删除
-                handleLinkInDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+                handleUpdateDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
             }
         }
     }
+
+
 }
 
