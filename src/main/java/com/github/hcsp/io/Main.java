@@ -1,5 +1,6 @@
 package com.github.hcsp.io;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -42,6 +43,7 @@ public class Main {
         }
     }
 
+    @SuppressFBWarnings("RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
     private static void handleNewLinkAndProcessedLink(String link, Connection connection) {
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = generateATagRequest(link);
@@ -77,17 +79,11 @@ public class Main {
 
     private static List<String> loadUrlsFromDatabase(Connection connection, String sql) throws SQLException {
         List<String> list = new ArrayList<>();
-        ResultSet result = null;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            result = statement.executeQuery();
+        try (PreparedStatement statement = connection.prepareStatement(sql); ResultSet result = statement.executeQuery()) {
             while (result.next()) {
                 list.add(result.getString(1));
             }
             return list;
-        } finally {
-            if (result != null) {
-                result.close();
-            }
         }
     }
 
@@ -107,7 +103,7 @@ public class Main {
         return false;
     }
 
-    @SuppressWarnings("DMI_CONSTANT_DB_PASSWORD")
+    @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
     public static void main(String[] args) throws SQLException {
         Connection connection = DriverManager.getConnection("jdbc:h2:file:F:\\ideaMy\\java-practice01-crawler\\news", USER_NAME, PASSWORD);
         while (true) {
