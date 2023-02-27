@@ -106,7 +106,6 @@ public class Main {
     }
 
     private static String getNextLink(Connection connection, String sql) throws SQLException {
-        List<String> list = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql); ResultSet result = statement.executeQuery()) {
             while (result.next()) {
                 return result.getString(1);
