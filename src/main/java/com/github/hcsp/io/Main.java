@@ -14,7 +14,9 @@ import org.jsoup.nodes.Element;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Main {
     private static final String USER_NAME = "root";
@@ -25,19 +27,28 @@ public class Main {
     }
 
     private static HttpGet generateATagRequest(String link) {
-        if (link.startsWith("//")) {
-            link = "https:" + link;
-        }
         HttpGet httpGet = new HttpGet(link);
         httpGet.addHeader("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         return httpGet;
     }
 
-    private static void handleArticle(Document doc) {
+    private static void handleArticle(Connection connection, Document doc, String link) {
         ArrayList<Element> articleTags = doc.select("article");
         if (!articleTags.isEmpty()) {
             for (Element articleTag : articleTags) {
                 String title = articleTag.child(0).text();
+                ArrayList<Element> paragraphs = articleTag.select("p");
+                String content = paragraphs.stream().map(Element::text).collect(Collectors.joining("\n"));
+                try (PreparedStatement statement = connection.prepareStatement("insert into NEWS(url , title, content, created_at, modified_at) values ( ?,?,?,now(),now() )")) {
+                    statement.setString(1, link);
+                    statement.setString(2, title);
+                    statement.setString(3, content);
+                    statement.execute();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+
+                System.out.println(link);
                 System.out.println(title);
             }
         }
@@ -54,7 +65,7 @@ public class Main {
             // 从当前链接获取新链接成功后再从数据库删除当前链接
             handleUpdateDatabase(link, connection, "delete from LINKS_TO_BE_PROCESSED where link = ?");
             parseALinkFromPageAndStoreIntoDatabase(connection, doc);
-            handleArticle(doc);
+            handleArticle(connection, doc, link);
             handleUpdateDatabase(link, connection, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -62,10 +73,27 @@ public class Main {
     }
 
     private static void parseALinkFromPageAndStoreIntoDatabase(Connection connection, Document doc) {
+        String[] banWordsList = new String[]{"#", "javascript"};
         for (Element aTag : doc.select("a")) {
             String href = aTag.attr("href");
-            handleUpdateDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
+            if (href.startsWith("//")) {
+                href = "https:" + href;
+            }
+            if (!isContainsBanWord(banWordsList, href)) {
+                handleUpdateDatabase(href, connection, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
+            }
         }
+    }
+
+    private static Boolean isContainsBanWord(String[] banWordsList, String href) {
+        List<String> tempList = Arrays.asList(banWordsList);
+        for (String item :
+                tempList) {
+            if (href.toLowerCase().startsWith(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void handleUpdateDatabase(String link, Connection connection, String sql) {
