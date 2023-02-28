@@ -1,4 +1,4 @@
-package com.github.hcsp.io;
+package com.github.hcsp;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpEntity;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 
 public class Crawler {
 
-    private CrawlerDao dao = new JdbcCrawlerDao();
+    private MyBatisCrawlerDao dao = new JdbcCrawlerDao();
 
     private static Boolean isInterestLink(String link) {
         return link.contains("sina.cn") && !link.contains("passport.sina.cn") && (link.contains("news.sina.cn") || "https://sina.cn".equals(link));
@@ -53,10 +53,12 @@ public class Crawler {
             String html = EntityUtils.toString(entity1);
             Document doc = Jsoup.parse(html);
             // 从当前链接获取新链接成功后再从数据库删除当前链接
-            dao.handleUpdateDatabase(link, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+            dao.deleteLinkFromDatabase(link);
+//            dao.handleUpdateDatabase(link, "delete from LINKS_TO_BE_PROCESSED where link = ?");
             parseALinkFromPageAndStoreIntoDatabase(doc);
             handleArticle(doc, link);
-            dao.handleUpdateDatabase(link, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
+            dao.insertLinkIntoDatabase(link);
+//            dao.handleUpdateDatabase(link, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

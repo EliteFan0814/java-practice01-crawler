@@ -1,13 +1,15 @@
-package com.github.hcsp.io;
+package com.github.hcsp;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
+import org.apache.ibatis.session.SqlSessionFactory;
 import java.sql.*;
 
-public class JdbcCrawlerDao implements CrawlerDao {
+public class JdbcCrawlerDao implements MyBatisCrawlerDao {
+    private SqlSessionFactory sqlSessionFactory;
     private static final String USER_NAME = "root";
     private static final String PASSWORD = "123456";
     private final Connection connection;
+
     @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
     public JdbcCrawlerDao() {
         try {
