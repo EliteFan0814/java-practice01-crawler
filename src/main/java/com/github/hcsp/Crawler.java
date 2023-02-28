@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 
 public class Crawler {
 
-    private MyBatisCrawlerDao dao = new JdbcCrawlerDao();
+    private MyBatisCrawlerDao dao = new JdbcMyBatisCrawlerDao();
 
     private static Boolean isInterestLink(String link) {
         return link.contains("sina.cn") && !link.contains("passport.sina.cn") && (link.contains("news.sina.cn") || "https://sina.cn".equals(link));
@@ -40,6 +40,7 @@ public class Crawler {
                 ArrayList<Element> paragraphs = articleTag.select("p");
                 String content = paragraphs.stream().map(Element::text).collect(Collectors.joining("\n"));
                 dao.insertNewsIntoDatabase(link, title, content);
+                System.out.println(title);
             }
         }
     }
@@ -54,11 +55,9 @@ public class Crawler {
             Document doc = Jsoup.parse(html);
             // 从当前链接获取新链接成功后再从数据库删除当前链接
             dao.deleteLinkFromDatabase(link);
-//            dao.handleUpdateDatabase(link, "delete from LINKS_TO_BE_PROCESSED where link = ?");
             parseALinkFromPageAndStoreIntoDatabase(doc);
             handleArticle(doc, link);
-            dao.insertLinkIntoDatabase(link);
-//            dao.handleUpdateDatabase(link, "insert into LINKS_ALREADY_PROCESSED (link)values(?)");
+            dao.insertProcessedLinkIntoDatabase(link);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -72,15 +71,14 @@ public class Crawler {
                 href = "https:" + href;
             }
             if (!isContainsBanWord(banWordsList, href)) {
-                dao.handleUpdateDatabase(href, "insert into LINKS_TO_BE_PROCESSED (link)values(?)");
+                dao.insertTobeProcessLinkIntoDatabase(href);
             }
         }
     }
 
     private Boolean isContainsBanWord(String[] banWordsList, String href) {
         List<String> tempList = Arrays.asList(banWordsList);
-        for (String item :
-                tempList) {
+        for (String item : tempList) {
             if (href.toLowerCase().startsWith(item)) {
                 return true;
             }
@@ -95,12 +93,12 @@ public class Crawler {
 
     public void run() throws SQLException {
         String link;
-        while ((link = dao.getNextLink("select link from LINKS_TO_BE_PROCESSED limit 1")) != null) {
+        while ((link = dao.getNextLink()) != null) {
             if (isANeededLink(link)) {
                 handleNewLinkAndProcessedLink(link);
             } else {
                 //如果已经处理过此条链接，则从数据库删除
-                dao.handleUpdateDatabase(link, "delete from LINKS_TO_BE_PROCESSED where link = ?");
+                dao.deleteLinkFromDatabase(link);
             }
         }
     }
@@ -109,7 +107,5 @@ public class Crawler {
         Crawler crawler = new Crawler();
         crawler.run();
     }
-
-
 }
 

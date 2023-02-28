@@ -9,14 +9,24 @@
     <delete id="deleteLink" parameterType="String">
         delete from LINKS_TO_BE_PROCESSED where link = #{link}
     </delete>
-    <insert id="insertNews" parameterType="con.github.hcsp.News">
+    <insert id="insertNews" parameterType="com.github.hcsp.News">
         insert into NEWS(url , title, content, created_at, modified_at) values ( #{url},#{title},#{content},now(),now()
-        )")
+        )
     </insert>
     <select id="countLink" parameterType="String" resultType="int">
         select count(link) from LINKS_ALREADY_PROCESSED where link = #{link}
     </select>
-    <insert id="insertLink" parameterType="String">
-        insert into LINKS_ALREADY_PROCESSED (link)values(#{link})
+    <insert id="insertTobeProcessLink" parameterType="String">
+        insert into LINKS_TO_BE_PROCESSED (link)values(#{link})
+    </insert>
+    <insert id="insertLink" parameterType="HashMap">
+        insert into
+        <choose>
+            <when test="tableName == links_already_processed">
+                LINKS_ALREADY_PROCESSED
+            </when>
+            <otherwise>LINKS_TO_BE_PROCESSED</otherwise>
+        </choose>
+        (link)values(#{link})
     </insert>
 </mapper>
