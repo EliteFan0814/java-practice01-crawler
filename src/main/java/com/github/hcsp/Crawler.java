@@ -56,7 +56,7 @@ public class Crawler extends Thread {
             String html = EntityUtils.toString(entity1);
             Document doc = Jsoup.parse(html);
             // 从当前链接获取新链接成功后再从数据库删除当前链接
-            dao.deleteLinkFromDatabase(link);
+//            dao.deleteLinkFromDatabase(link);
             parseALinkFromPageAndStoreIntoDatabase(doc);
             handleArticle(doc, link);
             dao.insertProcessedLinkIntoDatabase(link);
@@ -102,7 +102,7 @@ public class Crawler extends Thread {
                     handleNewLinkAndProcessedLink(link);
                 } else {
                     //如果已经处理过此条链接，则从数据库删除
-                    dao.deleteLinkFromDatabase(link);
+//                    dao.deleteLinkFromDatabase(link);
                 }
             }
         } catch (Exception e) {

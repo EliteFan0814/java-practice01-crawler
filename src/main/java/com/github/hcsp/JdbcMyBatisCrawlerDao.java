@@ -26,9 +26,10 @@ public class JdbcMyBatisCrawlerDao implements CrawlerDao {
 
     @Override
     public synchronized String getNextLink() {
-        try (SqlSession session = sqlSessionFactory.openSession()) {
+        try (SqlSession session = sqlSessionFactory.openSession(true)) {
             String url = (String) session.selectOne("com.github.hcsp.MyMapper.getNextLink");
             if (url != null) {
+                session.delete("com.github.hcsp.MyMapper.deleteLink", url);
                 return url;
             }
         }
