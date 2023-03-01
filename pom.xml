@@ -132,8 +132,8 @@
                 <artifactId>flyway-maven-plugin</artifactId>
                 <version>6.0.4</version>
                 <configuration>
-<!--                    <url>jdbc:mysql://localhost:3306/news?characterEncoding=utf-8</url>-->
-                    <url>jdbc:h2:file:~\IdeaProjects\java-practice01-crawler\news</url>
+<!--                    <url>jdbc:h2:file:~\IdeaProjects\java-practice01-crawler\news</url>-->
+                    <url>jdbc:h2:file:F:\ideaMy\java-practice01-crawler\news</url>
                     <user>root</user>
                     <password>123456</password>
                 </configuration>
