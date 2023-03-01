@@ -18,9 +18,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class Crawler {
-
-    private MyBatisCrawlerDao dao = new JdbcMyBatisCrawlerDao();
+public class Crawler extends Thread {
+    private CrawlerDao dao;
+    public Crawler(CrawlerDao dao) {
+        this.dao = dao;
+    }
 
     private static Boolean isInterestLink(String link) {
         return link.contains("sina.cn") && !link.contains("passport.sina.cn") && (link.contains("news.sina.cn") || "https://sina.cn".equals(link));
@@ -91,21 +93,21 @@ public class Crawler {
         return !dao.isProcessed(link) && isInterestLink(link);
     }
 
-    public void run() throws SQLException {
-        String link;
-        while ((link = dao.getNextLink()) != null) {
-            if (isANeededLink(link)) {
-                handleNewLinkAndProcessedLink(link);
-            } else {
-                //如果已经处理过此条链接，则从数据库删除
-                dao.deleteLinkFromDatabase(link);
+    @Override
+    public void run() {
+        try {
+            String link;
+            while ((link = dao.getNextLink()) != null) {
+                if (isANeededLink(link)) {
+                    handleNewLinkAndProcessedLink(link);
+                } else {
+                    //如果已经处理过此条链接，则从数据库删除
+                    dao.deleteLinkFromDatabase(link);
+                }
             }
+        } catch (Exception e) {
+            throw new RuntimeException();
         }
-    }
-
-    public static void main(String[] args) throws SQLException {
-        Crawler crawler = new Crawler();
-        crawler.run();
     }
 }
 

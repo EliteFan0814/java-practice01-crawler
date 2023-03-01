@@ -2,7 +2,7 @@ package com.github.hcsp;
 
 import java.sql.SQLException;
 
-public interface MyBatisCrawlerDao {
+public interface CrawlerDao {
     String getNextLink();
     void handleUpdateDatabase(String link, String sql);
     void insertNewsIntoDatabase(String url, String title, String content);

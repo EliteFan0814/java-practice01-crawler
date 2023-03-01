@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class JdbcMyBatisCrawlerDao implements MyBatisCrawlerDao {
+public class JdbcMyBatisCrawlerDao implements CrawlerDao {
     private SqlSessionFactory sqlSessionFactory;
 
     public JdbcMyBatisCrawlerDao() {
@@ -25,7 +25,7 @@ public class JdbcMyBatisCrawlerDao implements MyBatisCrawlerDao {
     }
 
     @Override
-    public String getNextLink() {
+    public synchronized String getNextLink() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
             String url = (String) session.selectOne("com.github.hcsp.MyMapper.getNextLink");
             if (url != null) {
