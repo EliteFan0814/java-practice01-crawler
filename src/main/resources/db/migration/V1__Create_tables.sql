@@ -1,4 +1,4 @@
-ALTER DATABASE news CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+# ALTER DATABASE news CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 create table NEWS
 (
     id          bigint primary key auto_increment,
@@ -7,7 +7,7 @@ create table NEWS
     url         varchar(1000),
     created_at  timestamp default now(),
     modified_at timestamp default now()
-);
+) default CHARSET = utf8mb4;
 
 create table LINKS_TO_BE_PROCESSED
 (
