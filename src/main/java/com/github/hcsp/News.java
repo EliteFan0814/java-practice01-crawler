@@ -1,10 +1,43 @@
 package com.github.hcsp;
 
+import java.time.Instant;
+
 public class News {
     private int id;
     private String url;
     private String title;
     private String content;
+    private Instant createdAt;
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public News() {
+    }
+
+    public News(News old) {
+        this.id = old.id;
+        this.url = old.url;
+        this.title = old.title;
+        this.content = old.content;
+        this.createdAt = old.createdAt;
+        this.modifiedAt = old.modifiedAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getModifiedAt() {
+        return modifiedAt;
+    }
+
+    public void setModifiedAt(Instant modifiedAt) {
+        this.modifiedAt = modifiedAt;
+    }
+
+    private Instant modifiedAt;
 
     public News(String url, String title, String content) {
         this.url = url;
